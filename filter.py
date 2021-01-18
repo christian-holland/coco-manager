@@ -5,10 +5,16 @@ class CocoFilter():
     """ Filters the COCO dataset
     """
     def _process_info(self):
-        self.info = self.coco['info']
+        if 'info' in self.coco:
+            self.info = self.coco['info']
+        else:
+            self.info = []
         
     def _process_licenses(self):
-        self.licenses = self.coco['licenses']
+        if 'licenses' in self.coco:
+            self.licenses = self.coco['licenses']
+        else:
+            self.licenses = []
         
     def _process_categories(self):
         self.categories = dict()
@@ -54,6 +60,7 @@ class CocoFilter():
             Create mapping from original category id to new category id
             Create new collection of categories
         """
+        print(self.filter_categories)
         missing_categories = set(self.filter_categories) - self.category_set
         if len(missing_categories) > 0:
             print(f'Did not find categories: {missing_categories}')
