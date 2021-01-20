@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import random
 
 class CocoFilter():
     """ Filters the COCO dataset
@@ -108,6 +109,7 @@ class CocoFilter():
         # Open json
         self.input_json_path = Path(args.input_json)
         self.output_json_path = Path(args.output_json)
+        self.val_json_path = Path(args.val_json)
         self.filter_categories = args.categories
 
         # Verify input path exists
@@ -142,19 +144,57 @@ class CocoFilter():
         self._filter_annotations()
         self._filter_images()
 
-        # Build new JSON
-        new_master_json = {
-            'info': self.info,
-            'licenses': self.licenses,
-            'images': self.new_images,
-            'annotations': self.new_segmentations,
-            'categories': self.new_categories
-        }
+        if args.val_json:
+            with open("val_names.json") as json_file:
+                self.val_names = json.load(json_file)
+                val_images = [im for im in self.new_images if (im["path"].split("/")[-1] in self.val_names)]
+                val_ids = [im["id"] for im in val_images]
+                val_annotations = [seg for seg in self.new_segmentations if seg["image_id"] in val_ids]
+                val_json = {
+                    'info': self.info,
+                    'licenses': self.licenses,
+                    'images': val_images,
+                    'annotations': val_annotations,
+                    'categories': self.new_categories
+                }
+                print('Saving new val json file...')
+                with open(self.val_json_path, 'w+') as output_file:
+                    json.dump(val_json, output_file)
+
+                train_images = [im for im in self.new_images if (im["path"].split("/")[-1] not in self.val_names)]
+                train_ids = [im["id"] for im in train_images]
+                train_annotations = [seg for seg in self.new_segmentations if seg["image_id"] in train_ids]
+
+                train_json = {
+                    'info': self.info,
+                    'licenses': self.licenses,
+                    'images': train_images,
+                    'annotations': train_annotations,
+                    'categories': self.new_categories
+                }
+
+        else:
+            # Build new JSON
+            train_json = {
+                'info': self.info,
+                'licenses': self.licenses,
+                'images': self.new_images,
+                'annotations': self.new_segmentations,
+                'categories': self.new_categories
+            }
+
+
+        # imnames = [im["path"].split("/")[-1] for im in self.new_images]
+        # random.shuffle(imnames)
+        # val_names = imnames[:30]
+        # with open("val_names.json", 'w+') as output_file:
+        #     json.dump(val_names, output_file)
+        # exit()
 
         # Write the JSON to a file
         print('Saving new json file...')
         with open(self.output_json_path, 'w+') as output_file:
-            json.dump(new_master_json, output_file)
+            json.dump(train_json, output_file)
 
         print('Filtered json saved.')
 
@@ -169,6 +209,8 @@ if __name__ == "__main__":
         help="path to a json file in coco format")
     parser.add_argument("-o", "--output_json", dest="output_json",
         help="path to save the output json")
+    parser.add_argument("-v", "--val_json", dest="val_json", default="",
+        help="path to save the val output json")
     parser.add_argument("-c", "--categories", nargs='+', dest="categories",
         help="List of category names separated by spaces, e.g. -c person dog bicycle")
 
